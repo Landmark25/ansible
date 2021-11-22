@@ -1,0 +1,34 @@
+---
+- name: install and configure DB
+  hosts: all
+  become: true
+
+  tasks:
+   - name: update packages
+     apt: 
+      update_cache: true
+      cache_valid_time: 3600
+      force_apt_get: true
+
+   - name: upgrade packages 
+     apt: 
+      name: "*"
+      state: latest
+
+   - name:  install nginx
+     apt: 
+      name: nginx 
+      state: present
+
+     notify:
+      - start nginx
+
+   - name: restarted nginx
+     service: 
+      name: nginx
+      state: restarted
+
+  handlers:
+   - name: start nginx
+     service: name=nginx state=started 
+

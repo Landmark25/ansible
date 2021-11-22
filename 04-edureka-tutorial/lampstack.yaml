@@ -1,0 +1,84 @@
+---
+- name: install apache & php & mysql
+  hosts: all
+  become: true
+  become_user: root
+  gather_facts: true
+  vars:
+    http_port: 80
+    http_conf: "my_domain.conf"
+    http_host: "mydomain.local"
+    domain: "example.com"
+  tasks:
+    - name: "Install apache2"
+      apt: 
+       name: apache2
+       update_cache: yes
+       state: present
+    
+    - name: apache2 virtualhost on port 8081
+      lineinfile:
+         dest: /etc/apache2/sites-available/000-default.conf 
+         regexp: '^<VirtualHost \*:8081>'  #<VirtualHost *:8081>
+         #line:  ' # <VirtualHost *:8081>  ' 
+         #backrefs: yes
+         state: absent
+      notify:
+        - restart apache2
+
+    - name: Create document root for your domain
+      file:
+        path: "/var/www/{{ http_host }}"
+        state: directory
+        owner: root
+        mode: '0755'
+        
+    - name: Copy your index page
+      template:
+        src: "./index.html"
+        dest: "/var/www/{{ http_host }}/index.html"
+
+    - name: Set up virtuahHost
+      template:
+        src: "./apache.conf.j2"
+        dest: "/etc/apache2/sites-available/{{ http_conf }}"
+      notify: restart apache2
+
+    - name: "UFW firewall allow HTTP on port {{ http_port }}"
+      ufw:
+        rule: allow
+        port: "{{ http_port }}"
+        proto: tcp  
+      notify: 
+         - restart apache2
+     
+    - name: "Install apache2-php5"
+      apt:
+       name: libapache2-mod-php
+       state: present
+
+       #  - name: "Install php-cli"
+       # apt:
+       # name: php-mcrypt
+       #  state: present
+
+    - name: "Install php-gd"
+      apt:
+       name: php-gd
+       state: present
+
+    - name: "Install php-mysql"
+      apt:
+       name: php-mysql
+       state: present
+
+    - name: "Install mysqlServer"
+      apt:
+        name: mysql-server
+        state: present
+        
+  handlers:
+    - name: restart apache2
+      service: 
+       name: apache2
+       state: restarted
