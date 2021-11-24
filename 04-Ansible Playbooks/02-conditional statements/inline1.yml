@@ -1,0 +1,9 @@
+---
+- name:  simple usage of inline conditional statement (if else)
+  hosts: localhost
+  vars: 
+   x: 155
+   y: 90
+  tasks: 
+   - debug: 
+      msg: "The larger number of {{x}} and {{y}} is: {{ x if ( x > y ) else (y) }} "

@@ -1,0 +1,10 @@
+- name: How to use the debug module 
+  hosts: app
+  tasks: 
+  - name: capturing the memory results
+    shell: df -h
+    register: memory_results
+
+  - debug:
+     var: memory_results
+ 

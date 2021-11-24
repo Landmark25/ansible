@@ -1,0 +1,16 @@
+---
+- name: Simple way to install httpd or apache2
+  hosts: all
+  become: yes
+  tasks: 
+  - name: Installing http using yum on RHEL or AMLINUX
+    yum: 
+     name: httpd
+     state: present
+    when: ansible_distribution != "Ubuntu"
+  - name: Installing apache2 using apt on Ubuntu
+    apt: 
+     name: apache2
+     state: present
+    when: ansible_distribution == "Ubuntu"
+

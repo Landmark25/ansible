@@ -1,0 +1,14 @@
+---
+ - name: This Play is to display a message
+   hosts: all
+   tasks:      
+   - name: Displays a random message 
+     debug:
+      msg: 'This is the day'
+   - name: Displays the hostnames of all servers
+     debug:
+      var: 'inventory_hostname'
+   - name: Displays the ansible distribution
+     debug: 
+      var: 'ansible_distribution'
+
