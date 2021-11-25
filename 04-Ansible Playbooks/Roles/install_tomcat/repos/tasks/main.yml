@@ -1,0 +1,7 @@
+---
+# tasks file for repos
+- name: Updating repos
+  yum:
+    name: "*"
+    state: latest
+

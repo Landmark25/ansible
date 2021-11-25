@@ -1,0 +1,17 @@
+---
+  - hosts: app
+    gather_facts: false
+    become: yes
+    tasks:
+      - name: Install httpd
+        yum:
+          name: httpd
+          state: present
+        register: out
+      - debug:
+          var: out.changed
+      - name: start httpd
+        service:
+          name: httpd
+          state: started
+        when: out.changed == True

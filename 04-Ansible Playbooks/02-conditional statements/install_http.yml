@@ -8,9 +8,20 @@
      name: httpd
      state: present
     when: ansible_distribution != "Ubuntu"
+    register: results
   - name: Installing apache2 using apt on Ubuntu
     apt: 
      name: apache2
      state: present
     when: ansible_distribution == "Ubuntu"
+    register: results_01
+  - name: Displaying the results for RHEL or AmLinux
+    debug:
+     var: results
+  - name: Displaying the results for Ubuntu
+    debug:
+     var: results_01
+
+
+     
 

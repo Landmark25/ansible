@@ -1,0 +1,22 @@
+---
+- name: installing packages with yum
+  hosts: all
+  gather_facts: true
+  become: yes
+  tasks:
+   - name: Installing Git
+     yum:
+      name: git
+      state: present
+   - yum:
+      name: wget
+      state: present
+   - yum:
+      name: pip3
+      state: present
+   - yum:
+      name: tree
+      state: present
+   - yum:
+      name: vim
+      state: present

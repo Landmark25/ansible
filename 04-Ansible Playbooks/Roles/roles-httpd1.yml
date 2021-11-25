@@ -1,0 +1,7 @@
+--- 
+- hosts: app
+  gather_facts: false
+  become: yes
+  roles:
+    - httpd1
+

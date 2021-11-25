@@ -1,0 +1,17 @@
+---
+  - hosts: all
+    gather_facts: true
+    become: yes
+    tasks:
+      - name: Updating Packages
+        apt: 
+         state: latest
+      - apt:
+         name: "{{item}}"
+         state: present
+        loop:
+          - git
+          - wget
+          - pip3
+          - tree
+          - vim

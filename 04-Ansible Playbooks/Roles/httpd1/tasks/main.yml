@@ -1,0 +1,12 @@
+---
+# tasks file for httpd1
+- name: Install httpd
+  yum:
+    name: httpd
+    state: present
+  notify:
+    - start httpd
+- name: copy dynamic data
+  template:
+   src: index.html.j2
+   dest: /usr/share/httpd/noindex/index.html
