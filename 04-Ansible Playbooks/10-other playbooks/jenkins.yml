@@ -1,6 +1,9 @@
-- hosts: web 
+- name: Installing Jenkins on Amazon Linux 
+  hosts: app 
   become: yes
-  become_user: root      
+  become_user: root    
+  vars:
+   package: jenkins #--nobest  
   tasks:
      - name: install wget
        yum:
@@ -13,19 +16,30 @@
           state: present
 
      - name: install jenkins repo
-       command: wget -O /etc/yum.repos.d/jenkins.repo \ https://pkg.jenkins.io/redhat-stable/jenkins.repo
+       command: wget -O /etc/yum.repos.d/jenkins.repo \  https://pkg.jenkins.io/redhat-stable/jenkins.repo # wget -O /etc/yum.repos.d/jenkins.repo \ https://pkg.jenkins.io/redhat-stable/jenkins.repo
 
      - name: import jenkins key
-       command: rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+       command: rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key  # rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
 
      - name: Install java
        yum:
           name: java-1.8.0-openjdk-devel
           state: present
+     
+     - name: Upgrade Packages
+       yum:
+         name: "*"
+         state: latest
+
+     - name: Install epel-release java-11-openjdk-devel
+       command: amazon-linux-extras install java-openjdk11 -y  # yum install epel-release java-11-openjdk-devel
+
+     - name: Install amazon-linux-extras
+       command: amazon-linux-extras install epel -y
 
      - name: Install jenkins
        yum:
-         name: jenkins
+         name: "{{ package }}"
          state: present
 
      - name: Change jenkins users shell
