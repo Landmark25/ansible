@@ -1,92 +1,109 @@
-- hosts: nexus_worker
+- name: Creating a Nexus Server
+  hosts: localhost
   vars:
-    nexus_version: 2.7.0  
-    nexus_download_url: http://www.sonatype.org/downloads/nexus-{{nexus_version}}-bundle.tar.gz
-    nexus_download_dest: /tmp/nexus-{{nexus_version}}-bundle.tar.gz
+    nexus_version: 3
+    nexus_download_url: https://download.sonatype.com/nexus/{{nexus_version}}/latest-unix.tar.gz # http://www.sonatype.org/downloads/nexus-{{nexus_version}}-bundle.tar.gz
+    nexus_download_dest: /tmp/nexus-{{nexus_version}}.tar.gz
     nexus_extracted_dir: /tmp/nexus_extracted_dir
     nexus_dir: /usr/local/nexus
+  become: yes
 
   tasks:
 
-  - name: update apt
-    apt: update_cache=yes cache_valid_time=3600
-    sudo: true
+   - name: Update apt
+     apt:
+       update_cache: yes 
+       cache_valid_time: 3600
 
-  - name: install wget
-    apt: pkg='wget' state=installed
+   - name: install wget
+     apt: pkg='wget' state=present
+ 
+   - name: install jdk 8
+     apt: pkg='openjdk-8-jdk' state=present
+ 
+     #  - name: set JDK 8 as a default alternative
+     # command: update-java-alternatives --set java-1.8.0-openjdk
+     # register: java_results
 
-  - name: install jdk 7
-    apt: pkg='openjdk-7-jdk' state=installed
-    sudo: true
+     #- debug: 
+     # msg: this is the result {{java_results}}
 
-  - name: set JDK 7 as a default alternative
-    command: update-java-alternatives --set java-1.7.0-openjdk-i386
-    sudo: true
+   - name: create "nexus" group
+     group: name=nexus 
 
-  - name: create "nexus" group
-    group: name=nexus 
-    sudo: true
+   - name: create "nexus" user
+     user: name=nexus group=nexus 
+   
+   - name: make "nexus" user run sudo commands
+     shell: sudo echo "nexus ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nexus
 
-  - name: create "nexus" user
-    user: name=nexus group=nexus 
-    sudo: true
+   - name: Change nexus users shell
+     user:
+       name: nexus
+       shell: /bin/bash  
 
-  - name: download nexus
-    get_url: url={{nexus_download_url}} dest={{nexus_download_dest}}
-    register: nexus_download
+   - name: download nexus
+     get_url: url={{nexus_download_url}} dest={{nexus_download_dest}}
+     register: nexus_download
+     
 
-  - name: create {{nexus_extracted_dir}} directory
-    file: path={{nexus_extracted_dir}} state=directory
-    when: nexus_download.changed
-    sudo: true
+   - name: create {{nexus_extracted_dir}} directory
+     file: path={{nexus_extracted_dir}} state=directory
+     when: nexus_download.changed
+ 
+   - name: extract nexus to {{nexus_extracted_dir}}
+     command: tar -xvf {{nexus_download_dest}} -C {{nexus_extracted_dir}} --strip-components=1
+     when: nexus_download.changed
 
-  - name: extract nexus to {{nexus_extracted_dir}}
-    command: tar xzf {{nexus_download_dest}} -C {{nexus_extracted_dir}} --strip-components=1
-    when: nexus_download.changed
-    sudo: true
+   - name: move nexus to {{nexus_dir}} directory
+     command: cp -a {{nexus_extracted_dir}}/. {{nexus_dir}}
+     when: nexus_download.changed
 
-  - name: move nexus to {{nexus_dir}} directory
-    command: cp -a {{nexus_extracted_dir}}/. {{nexus_dir}}
-    when: nexus_download.changed
-    sudo: true
+   - name: remove {{nexus_extracted_dir}} directory
+     command: rm -rf {{nexus_extracted_dir}}
+     when: nexus_download.changed
 
-  - name: remove {{nexus_extracted_dir}} directory
-    command: rm -rf {{nexus_extracted_dir}}
-    when: nexus_download.changed
-    sudo: true
+   - name: make {{nexus_dir}} directory property of "nexus" user/group
+     file: path={{nexus_dir}} group=nexus owner=nexus recurse=true
+     
+   - name: make nexus run by "nexus" user
+     lineinfile: dest={{nexus_dir}}/bin/nexus.rc regexp="^#run_as_user=" line="run_as_user=nexus" backrefs=true
 
-  - name: make {{nexus_dir}} directory property of "nexus" user/group
-    file: path={{nexus_dir}} group=nexus owner=nexus recurse=true
-    sudo: true
+   - name: set NEXUS_DIRECTORY
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Dkaraf.data" line="-Dkaraf.data={{nexus_dir}}/sonatype-work/nexus3" backrefs=true
 
-  - name: make nexus runned by "nexus" user
-    lineinfile: dest={{nexus_dir}}/bin/nexus regexp="#RUN_AS_USER=" line="RUN_AS_USER=nexus" backrefs=true
-    sudo: true
+   - name: set NEXUS_LOG
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Dkaraf.log" line="-Dkaraf.log={{nexus_dir}}/sonatype-work/nexus3/log" backrefs=true
 
-  - name: set NEXUS_HOME
-    lineinfile: dest={{nexus_dir}}/bin/nexus regexp="^NEXUS_HOME" line="NEXUS_HOME={{nexus_dir}}" backrefs=true
-    sudo: true
+   - name: set NEXUS_TMP
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Djava.io.tmpdir" line="-Djava.io.tmpdir={{nexus_dir}}/sonatype-work/nexus3/tmp" backrefs=true
+     # - name: create {{nexus_extracted_dir}}/nexus-data directory
+     # file: path={{nexus_extracted_dir}}/nexus-data state=directory
+   
+     #- name: make nexus-data  directory property of "nexus" user/group
+     #file: path={{nexus_dir}}/nexus-data group=nexus owner=nexus recurse=true
 
-  - name: create nexus piddir
-    file: path=/var/run/nexus state=directory group=nexus owner=nexus
-    sudo: true
+     #- name: set NEXUS_DATA
+     #lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Dkaraf.data" line="-Dkaraf.data={{nexus_dir}}/nexus-data" backrefs=true
 
-  - name: set nexus pidir
-    lineinfile: dest={{nexus_dir}}/bin/nexus regexp="^#PIDDIR=" line="PIDDIR=/var/run/nexus" backrefs=true
-    sudo: true
+     #- name: create nexus piddir
+     #file: path=/var/run/nexus state=directory group=nexus owner=nexus
 
-  - name: create symbolic links to /etc/init.d/nexus
-    file: src={{nexus_dir}}/bin/nexus dest=/etc/init.d/nexus state=link
-    sudo: true
+     # - name: set nexus pidir
+     # lineinfile: dest={{nexus_dir}}/bin/nexus regexp="^#PIDDIR=" line="PIDDIR=/var/run/nexus" backrefs=true
 
-  - name: configure runlevel links for nexus
-    command: update-rc.d nexus defaults
-    sudo: true
+   - name: create symbolic links to /etc/init.d/nexus
+     file: src={{nexus_dir}}/bin/nexus dest=/etc/init.d/nexus state=linki
 
-  - name: set nexus working directory
-    lineinfile: dest={{nexus_dir}}/conf/nexus.properties regexp="^nexus-work=" line="nexus-work=${bundleBasedir}/work/nexus"
-    sudo: true
+   - name: configure runlevel links for nexus
+     command: update-rc.d nexus defaults
+     become: yes
+     become_user: nexus
 
-  - name: start nexus
-    service: name=nexus state=started pattern={{nexus_dir}}
-    sudo: true
+     #   - name: set nexus working directory
+     # lineinfile: dest={{nexus_dir}}/conf/nexus.properties regexp="^nexus-work=" line="nexus-work=${bundleBasedir}/work/nexus"
+
+   - name: start nexus
+     service: name=nexus state=started pattern={{nexus_dir}}
+     become: yes 
+     become_user: nexus
