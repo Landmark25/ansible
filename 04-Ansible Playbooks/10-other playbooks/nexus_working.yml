@@ -1,0 +1,83 @@
+- name: Creating a Nexus Server
+  hosts: localhost
+  vars:
+    nexus_version: 3
+    nexus_download_url: https://download.sonatype.com/nexus/{{nexus_version}}/latest-unix.tar.gz # http://www.sonatype.org/downloads/nexus-{{nexus_version}}-bundle.tar.gz
+    nexus_download_dest: /tmp/nexus-{{nexus_version}}.tar.gz
+    nexus_extracted_dir: /tmp/nexus_extracted_dir
+    nexus_dir: /usr/local/nexus
+  become: yes
+
+  tasks:
+
+   - name: Update apt
+     apt:
+       update_cache: yes 
+       cache_valid_time: 3600
+
+   - name: install wget
+     apt: pkg='wget' state=present
+ 
+   - name: install jdk 8
+     apt: pkg='openjdk-8-jdk' state=present
+ 
+   - name: create "nexus" group
+     group: name=nexus 
+
+   - name: create "nexus" user
+     user: name=nexus group=nexus 
+   
+   - name: make "nexus" user run sudo commands
+     shell: sudo echo "nexus ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nexus
+
+   - name: Change nexus users shell
+     user:
+       name: nexus
+       shell: /bin/bash  
+
+   - name: download nexus
+     get_url: url={{nexus_download_url}} dest={{nexus_download_dest}}
+     register: nexus_download
+     
+
+   - name: create {{nexus_extracted_dir}} directory
+     file: path={{nexus_extracted_dir}} state=directory
+     when: nexus_download.changed
+ 
+   - name: extract nexus to {{nexus_extracted_dir}}
+     command: tar -xvf {{nexus_download_dest}} -C {{nexus_extracted_dir}} --strip-components=1
+     when: nexus_download.changed
+
+   - name: move nexus to {{nexus_dir}} directory
+     command: cp -a {{nexus_extracted_dir}}/. {{nexus_dir}}
+     when: nexus_download.changed
+
+   - name: remove {{nexus_extracted_dir}} directory
+     command: rm -rf {{nexus_extracted_dir}}
+     when: nexus_download.changed
+
+   - name: make {{nexus_dir}} directory property of "nexus" user/group
+     file: path={{nexus_dir}} group=nexus owner=nexus recurse=true
+     
+   - name: make nexus run by "nexus" user
+     lineinfile: dest={{nexus_dir}}/bin/nexus.rc regexp="^#run_as_user=" line="run_as_user=nexus" backrefs=true
+
+   - name: set NEXUS_DIRECTORY
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Dkaraf.data" line="-Dkaraf.data={{nexus_dir}}/sonatype-work/nexus3" backrefs=true
+
+   - name: set NEXUS_LOG
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Dkaraf.log" line="-Dkaraf.log={{nexus_dir}}/sonatype-work/nexus3/log" backrefs=true
+
+   - name: set NEXUS_TMP
+     lineinfile: dest={{nexus_dir}}/bin/nexus.vmoptions regexp="^-Djava.io.tmpdir" line="-Djava.io.tmpdir={{nexus_dir}}/sonatype-work/nexus3/tmp" backrefs=true
+
+   - name: create symbolic links to /etc/init.d/nexus
+     file: src={{nexus_dir}}/bin/nexus dest=/etc/init.d/nexus state=link
+
+   - name: configure runlevel links for nexus
+     command: update-rc.d nexus defaults
+
+   - name: start nexus
+     service: name=nexus state=started pattern={{nexus_dir}}
+     become: yes
+     become_user: nexus
