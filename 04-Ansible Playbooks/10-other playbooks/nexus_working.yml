@@ -34,6 +34,12 @@
      user:
        name: nexus
        shell: /bin/bash  
+   
+   - name: passing ssh-keys to nexus user
+     authorized_key:
+       user: nexus
+       state: present
+       key:   "{{ lookup('file', '/home/ansible/.ssh/id_rsa.pub') }}"  # "{{ lookup('file', '/home/' + lookup('env', 'ansible') + '/.ssh/id_rsa.pub') }}"
 
    - name: download nexus
      get_url: url={{nexus_download_url}} dest={{nexus_download_dest}}
@@ -78,6 +84,6 @@
      command: update-rc.d nexus defaults
 
    - name: start nexus
-     service: name=nexus state=started pattern={{nexus_dir}}
-     become: yes
+     become: true
      become_user: nexus
+     service: name=nexus state=started pattern={{nexus_dir}}
