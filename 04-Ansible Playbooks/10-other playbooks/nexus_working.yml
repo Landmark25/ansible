@@ -83,7 +83,11 @@
    - name: configure runlevel links for nexus
      command: update-rc.d nexus defaults
 
-   - name: start nexus
-     become: true
+     #- name: start nexus
+     # become: true
+     # become_user: nexus
+     # service: name=nexus state=started pattern={{nexus_dir}}
+   - name: Starting nexus
+     shell:  sh /usr/local/nexus/bin/nexus start & 
      become_user: nexus
-     service: name=nexus state=started pattern={{nexus_dir}}
+     become: yes            # nohup /usr/local/latest/bin/startup.sh &
